@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="NEVER GIVE UP">
+<meta name="theme-color" content="#111318">
+<title>NEVER GIVE UP</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.png">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;}
+input{user-select:text;}
+body{background:#111318;overflow:hidden;font-family:'SF Pro Display',-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;-webkit-font-smoothing:antialiased;}
+button{font-family:inherit;border:none;cursor:pointer;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script>
+const e=React.createElement,{useState,useEffect,useRef}=React;
+
+const GREEN="#39FF14",GREEN_GLOW="#39FF1440",BG_DARK="#111318",BG_CARD="#1a1d24",BG_ELEVATED="#22262f",BORDER="#2a2e38",TEXT_WHITE="#f0f0f0",TEXT_DIM="#5a6070";
+
+function to24(h,m,ap){let h24=h;if(ap==="AM"&&h===12)h24=0;else if(ap==="PM"&&h!==12)h24=h+12;return String(h24).padStart(2,"0")+":"+String(m).padStart(2,"0");}
+function from24(t){if(!t)return{h:12,m:0,ap:"AM"};const s=t.split(":").map(Number),h24=s[0],m=s[1],ap=h24>=12?"PM":"AM";let h=h24%12;if(h===0)h=12;return{h,m,ap};}
+function calcHours(s,en){if(!s||!en)return 0;const sp=s.split(":").map(Number),ep=en.split(":").map(Number);let a=sp[0]*60+sp[1],b=ep[0]*60+ep[1];if(b<=a)b+=1440;return Math.round((b-a)/15)*0.25;}
+function fmt12(t){if(!t)return"--:--";const{h,m,ap}=from24(t);return h+":"+String(m).padStart(2,"0")+" "+ap;}
+function fmtDur(hrs){const h=Math.floor(hrs),m=Math.round((hrs-h)*60);if(m===0)return h+"H";return h+"H "+m+"M";}
+function startMin(t){const p=t.split(":").map(Number);return p[0]*60+p[1];}
+
+const DEFAULT_BLOCKS=[
+  {id:"sleep",label:"SLEEP",start:"22:00",end:"06:00"},
+  {id:"gym",label:"GYM",start:"06:30",end:"08:00"},
+  {id:"alfa1",label:"ALFA 1 AUTO",start:"09:00",end:"17:00"},
+  {id:"daughter",label:"DAUGHTER",start:"17:30",end:"20:00"},
+  {id:"metime",label:"ME TIME",start:"20:30",end:"22:00"}
+];
+const VIEWS=["DAY","WEEK","MONTH"],MULT={DAY:1,WEEK:7,MONTH:30};
+const DAY_LABELS=["M","T","W","TH","F","S","SUN"],DAY_ORDER=[1,2,3,4,5,6,0];
+const HOURS_GRID=[12,1,2,3,4,5,6,7,8,9,10,11];
+const MINS_GRID=[0,5,10,15,20,25,30,35,40,45,50,55];
+const STORE_KEY="ngu-v8";
+
+function buildDefaults(){const days={};for(let d=0;d<7;d++)days[d]=DEFAULT_BLOCKS.map(b=>Object.assign({},b));return days;}
+function loadStore(){try{const s=localStorage.getItem(STORE_KEY);if(s){const p=JSON.parse(s);if(p&&typeof p==="object")return p;}}catch(e){}return buildDefaults();}
+function saveStore(s){try{localStorage.setItem(STORE_KEY,JSON.stringify(s));}catch(e){}}
+
+function TapTimePicker(props){
+  const p=from24(props.value);
+  const[hour,setHour]=useState(p.h);
+  const[minute,setMinute]=useState(MINS_GRID.reduce((prev,curr)=>Math.abs(curr-p.m)<Math.abs(prev-p.m)?curr:prev,0));
+  const[ampm,setAmpm]=useState(p.ap);
+  const[step,setStep]=useState("hour");
+  function pickHour(h){setHour(h);setStep("minute");}
+  function pickMinute(m){setMinute(m);props.onChange(to24(hour,m,ampm));}
+  function toggleAmPm(){const n=ampm==="AM"?"PM":"AM";setAmpm(n);props.onChange(to24(hour,minute,n));}
+  useEffect(function(){if(step!=="hour")props.onChange(to24(hour,minute,ampm));},[hour,minute,ampm]);
+  const grid=step==="hour"?HOURS_GRID:MINS_GRID;
+  return e("div",null,
+    e("div",{style:{fontSize:10,fontWeight:800,letterSpacing:3,color:GREEN,marginBottom:12,textAlign:"center",textShadow:"0 0 16px "+GREEN_GLOW}},props.label),
+    e("div",{style:{display:"flex",alignItems:"center",justifyContent:"center",gap:4,marginBottom:14}},
+      e("button",{onClick:function(){setStep("hour");},style:{padding:"8px 14px",borderRadius:8,border:step==="hour"?"1px solid "+GREEN+"66":"1px solid "+BORDER,background:step==="hour"?GREEN+"12":BG_DARK,color:GREEN,fontSize:26,fontWeight:900}},String(hour).padStart(2,"0")),
+      e("span",{style:{fontSize:26,fontWeight:900,color:GREEN}},":"),
+      e("button",{onClick:function(){setStep("minute");},style:{padding:"8px 14px",borderRadius:8,border:step==="minute"?"1px solid "+GREEN+"66":"1px solid "+BORDER,background:step==="minute"?GREEN+"12":BG_DARK,color:GREEN,fontSize:26,fontWeight:900}},String(minute).padStart(2,"0")),
+      e("button",{onClick:toggleAmPm,style:{padding:"8px 10px",borderRadius:8,border:"1px solid "+GREEN+"44",background:GREEN+"12",color:GREEN,fontSize:14,fontWeight:900,marginLeft:4,letterSpacing:2}},ampm)
+    ),
+    e("div",{style:{background:BG_DARK,borderRadius:10,padding:8,border:"1px solid "+BORDER}},
+      e("div",{style:{fontSize:8,fontWeight:700,letterSpacing:3,color:TEXT_DIM,marginBottom:6,textAlign:"center"}},step==="hour"?"SELECT HOUR":"SELECT MINUTE"),
+      e("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:5}},
+        grid.map(function(val){
+          const sel=step==="hour"?val===hour:val===minute;
+          return e("button",{key:val,onClick:function(){step==="hour"?pickHour(val):pickMinute(val);},style:{
+            padding:"11px 0",borderRadius:8,border:sel?"1px solid "+GREEN+"88":"1px solid "+BORDER,
+            background:sel?GREEN+"15":"transparent",color:sel?GREEN:TEXT_WHITE,
+            fontSize:15,fontWeight:sel?900:700,boxShadow:sel?"0 0 10px "+GREEN_GLOW:"none"
+          }},step==="minute"?":"+String(val).padStart(2,"0"):val);
+        })
+      )
+    )
+  );
+}
+
+function App(){
+  const[store,setStore]=useState(function(){return loadStore();});
+  const[curDay,setCurDay]=useState(new Date().getDay());
+  const[view,setView]=useState("DAY");
+  const[editing,setEditing]=useState(-1);
+  const[editingTime,setEditingTime]=useState(null);
+  const[editStart,setEditStart]=useState("");
+  const[editEnd,setEditEnd]=useState("");
+  const[editLabel,setEditLabel]=useState("");
+  const[delConfirm,setDelConfirm]=useState(false);
+  const[adding,setAdding]=useState(false);
+  const[addingTime,setAddingTime]=useState(null);
+  const[newLabel,setNewLabel]=useState("");
+  const[newStart,setNewStart]=useState("08:00");
+  const[newEnd,setNewEnd]=useState("10:00");
+  const[animIn,setAnimIn]=useState(false);
+
+  useEffect(function(){setTimeout(function(){setAnimIn(true);},50);},[]);
+  useEffect(function(){saveStore(store);},[store]);
+
+  const data=store[curDay]||[];
+  const mult=MULT[view];
+  let total=0;
+  const hours=data.map(function(b){const h=calcHours(b.start,b.end);total+=h;return h;});
+  const remaining=24-total;
+
+  const indices=Array.from({length:data.length},function(_,i){return i;}).sort(function(a,b){
+    if(data[a].id==="sleep")return-1;if(data[b].id==="sleep")return 1;
+    if(!data[a].start)return 1;if(!data[b].start)return-1;
+    return startMin(data[a].start)-startMin(data[b].start);
+  });
+
+  function openEdit(i){setEditing(i);setEditStart(data[i].start);setEditEnd(data[i].end);setEditLabel(data[i].label);setDelConfirm(false);setEditingTime(null);}
+  function saveEdit(){if(editing<0)return;const next=JSON.parse(JSON.stringify(store));next[curDay][editing]=Object.assign({},next[curDay][editing],{start:editStart,end:editEnd,label:(editLabel.trim().toUpperCase()||data[editing].label)});setStore(next);setEditing(-1);setEditingTime(null);}
+  function clearBlock(){if(editing<0)return;const next=JSON.parse(JSON.stringify(store));next[curDay][editing]=Object.assign({},next[curDay][editing],{start:"",end:""});setStore(next);setEditing(-1);}
+  function deleteBlock(){const next=JSON.parse(JSON.stringify(store));for(let d=0;d<7;d++)next[d].splice(editing,1);setStore(next);setEditing(-1);}
+  function addBlock(){if(!newLabel.trim()||!newStart||!newEnd)return;const next=JSON.parse(JSON.stringify(store));const block={id:"b"+Date.now(),label:newLabel.trim().toUpperCase(),start:newStart,end:newEnd};for(let d=0;d<7;d++)next[d].push(Object.assign({},block));setStore(next);setAdding(false);setAddingTime(null);setNewLabel("");setNewStart("08:00");setNewEnd("10:00");}
+
+  function TimeBtn(p){
+    return e("div",{style:{flex:1}},
+      e("div",{style:{fontSize:9,fontWeight:700,letterSpacing:3,color:TEXT_DIM,marginBottom:6}},p.label),
+      e("button",{onClick:p.onClick,style:{width:"100%",padding:"12px 6px",borderRadius:8,border:"1px solid "+BORDER,background:BG_DARK,textAlign:"center"}},
+        e("div",{style:{fontSize:20,fontWeight:900,color:TEXT_WHITE,lineHeight:1}},from24(p.value).h+":"+String(from24(p.value).m).padStart(2,"0")),
+        e("div",{style:{fontSize:10,fontWeight:800,color:GREEN,letterSpacing:2,marginTop:2}},from24(p.value).ap)
+      )
+    );
+  }
+
+  const modalBg={position:"fixed",inset:0,background:"rgba(0,0,0,0.82)",backdropFilter:"blur(16px)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:100};
+  const modalCard={background:"linear-gradient(145deg,"+BG_ELEVATED+" 0%,"+BG_CARD+" 100%)",borderRadius:"16px 16px 12px 12px",padding:24,width:"calc(100% - 24px)",maxWidth:400,marginBottom:16,border:"1px solid "+BORDER,boxShadow:"0 -8px 32px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.04) inset"};
+
+  return e("div",{style:{width:"100%",height:"100vh",background:BG_DARK,color:TEXT_WHITE,display:"flex",flexDirection:"column",overflow:"hidden",paddingTop:"env(safe-area-inset-top)"}},
+
+    // HEADER
+    e("div",{style:{padding:"16px 16px 0",flexShrink:0,opacity:animIn?1:0,transform:animIn?"translateY(0)":"translateY(-16px)",transition:"all 0.5s cubic-bezier(0.16,1,0.3,1)"}},
+      e("div",{style:{display:"flex",alignItems:"flex-end",justifyContent:"space-between",marginBottom:2}},
+        e("h1",{style:{fontSize:18,fontWeight:900,margin:0,letterSpacing:6,color:GREEN,textShadow:"0 0 30px "+GREEN_GLOW+", 0 0 60px "+GREEN_GLOW}},"NEVER GIVE UP"),
+        e("div",{style:{fontSize:10,fontWeight:800,letterSpacing:2,color:remaining>=0?TEXT_DIM:"#ff4444"}},remaining>0?remaining+"H OPEN":remaining<0?Math.abs(remaining)+"H OVER":"24H LOCKED")
+      ),
+
+      // Day selector
+      e("div",{style:{display:"flex",gap:3,margin:"10px 0 8px"}},
+        DAY_ORDER.map(function(dayNum,i){
+          const isOn=dayNum===curDay;
+          return e("div",{key:dayNum,onClick:function(){setCurDay(dayNum);},style:{
+            flex:1,borderRadius:6,padding:"7px 0",textAlign:"center",cursor:"pointer",
+            fontSize:10,fontWeight:800,letterSpacing:1,
+            background:isOn?BG_ELEVATED:"transparent",color:isOn?GREEN:TEXT_DIM,
+            border:isOn?"1px solid "+GREEN+"44":"1px solid transparent",
+            boxShadow:isOn?"0 0 10px "+GREEN_GLOW:"none",transition:"all 0.2s ease"
+          }},DAY_LABELS[i]);
+        })
+      ),
+
+      // View toggle
+      e("div",{style:{display:"flex",gap:2,marginBottom:8,background:"#0a0c10",borderRadius:6,padding:2}},
+        VIEWS.map(function(v){return e("button",{key:v,onClick:function(){setView(v);},style:{
+          flex:1,padding:"7px 0",borderRadius:5,fontSize:9,fontWeight:800,letterSpacing:3,
+          transition:"all 0.25s ease",background:view===v?BG_ELEVATED:"transparent",color:view===v?GREEN:TEXT_DIM,
+          boxShadow:view===v?"0 0 12px "+GREEN_GLOW+", inset 0 1px 0 #2a2e3844":"none"
+        }},v);})
+      ),
+
+      // Capacity bar
+      e("div",{style:{height:2,background:"#0a0c10",borderRadius:1,marginBottom:8,overflow:"hidden",display:"flex"}},
+        data.map(function(b,i){return e("div",{key:b.id+i,style:{width:(hours[i]/24*100)+"%",height:"100%",background:GREEN,boxShadow:"0 0 8px "+GREEN_GLOW,transition:"width 0.4s cubic-bezier(0.16,1,0.3,1)"}});})
+      )
+    ),
+
+    // BLOCKS
+    e("div",{style:{flex:1,display:"flex",flexDirection:"column",gap:4,padding:"0 16px",minHeight:0,opacity:animIn?1:0,transition:"opacity 0.6s ease 0.15s"}},
+      indices.map(function(i){
+        const b=data[i],h=hours[i],flex=Math.max(h,0.4),intensity=0.3+(h/24)*0.7;
+        const timeStr=b.start&&b.end?fmt12(b.start)+" — "+fmt12(b.end):"NOT SET";
+        return e("div",{key:b.id+"-"+i,onClick:function(){openEdit(i);},style:{
+          flex:flex,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"space-between",
+          padding:"0 16px",cursor:"pointer",background:"linear-gradient(135deg,"+BG_CARD+" 0%, #16181f 100%)",
+          border:"1px solid "+BORDER,minHeight:28,position:"relative",overflow:"hidden",
+          boxShadow:"0 4px 12px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.03) inset, 0 -2px 4px rgba(0,0,0,0.2) inset",
+          transition:"flex 0.4s cubic-bezier(0.16,1,0.3,1)"
+        }},
+          e("div",{style:{position:"absolute",left:0,top:"15%",bottom:"15%",width:3,borderRadius:"0 2px 2px 0",background:GREEN,opacity:intensity,boxShadow:"4px 0 12px "+GREEN_GLOW}}),
+          e("div",{style:{position:"absolute",top:0,left:0,right:0,height:"50%",background:"linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%)",pointerEvents:"none"}}),
+          e("div",{style:{marginLeft:8,minWidth:0,overflow:"hidden",position:"relative",zIndex:1}},
+            e("div",{style:{fontSize:14,fontWeight:800,letterSpacing:3,color:GREEN,textShadow:"0 0 12px "+GREEN_GLOW,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}},b.label),
+            h>1.5?e("div",{style:{fontSize:9,color:TEXT_DIM,fontWeight:600,marginTop:1,letterSpacing:0.5}},timeStr):null
+          ),
+          e("div",{style:{display:"flex",alignItems:"center",flexShrink:0,position:"relative",zIndex:1,gap:8}},
+            h<=1.5?e("div",{style:{fontSize:9,fontWeight:600,color:TEXT_DIM,whiteSpace:"nowrap"}},timeStr):null,
+            e("div",{style:{textAlign:"right"}},
+              e("div",{style:{fontSize:h>3?24:18,fontWeight:900,color:TEXT_WHITE,textShadow:"0 2px 4px rgba(0,0,0,0.5)",whiteSpace:"nowrap",lineHeight:1}},fmtDur(h*mult)),
+              h>2?e("div",{style:{fontSize:8,color:TEXT_DIM,letterSpacing:2,fontWeight:700,marginTop:1}},Math.round(h/24*100)+"%"):null
+            )
+          )
+        );
+      }),
+      e("div",{onClick:function(){setAdding(true);setAddingTime(null);},style:{
+        borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",
+        padding:"8px 0",cursor:"pointer",flexShrink:0,minHeight:28,
+        border:"1px dashed "+BORDER,background:"transparent"
+      }},e("div",{style:{fontSize:10,fontWeight:800,color:TEXT_DIM,letterSpacing:4}},"+ ADD BLOCK"))
+    ),
+
+    e("div",{style:{textAlign:"center",padding:"6px 0 10px",fontSize:8,color:TEXT_DIM+"44",letterSpacing:2,fontWeight:600,flexShrink:0}},"TAP BLOCK TO EDIT"),
+
+    // EDIT MODAL
+    editing>=0&&!editingTime?e("div",{onClick:function(ev){if(ev.target===ev.currentTarget)saveEdit();},style:modalBg},
+      e("div",{style:modalCard},
+        e("input",{value:editLabel,onChange:function(ev){setEditLabel(ev.target.value);},style:{width:"100%",padding:"10px 14px",borderRadius:8,border:"1px solid "+BORDER,background:BG_DARK,color:GREEN,fontSize:16,fontWeight:800,letterSpacing:3,outline:"none",marginBottom:16,textTransform:"uppercase",boxSizing:"border-box"}}),
+        e("div",{style:{display:"flex",gap:12,marginBottom:14}},
+          e(TimeBtn,{label:"START",value:editStart||"12:00",onClick:function(){setEditingTime("start");}}),
+          e(TimeBtn,{label:"END",value:editEnd||"12:00",onClick:function(){setEditingTime("end");}})
+        ),
+        editStart&&editEnd?e("div",{style:{textAlign:"center",padding:"10px 0",marginBottom:16,background:BG_DARK,borderRadius:8,border:"1px solid "+BORDER}},
+          e("div",{style:{fontSize:24,fontWeight:900,color:TEXT_WHITE}},fmtDur(calcHours(editStart,editEnd))),
+          e("div",{style:{fontSize:10,color:GREEN,fontWeight:700,letterSpacing:2,marginTop:2}},fmt12(editStart)+" — "+fmt12(editEnd))
+        ):null,
+        e("div",{style:{display:"flex",gap:8,marginBottom:8}},
+          e("button",{onClick:function(){setEditing(-1);},style:{flex:1,padding:13,borderRadius:10,border:"1px solid "+BORDER,fontSize:12,fontWeight:700,background:BG_DARK,color:TEXT_DIM,letterSpacing:1}},"CLOSE"),
+          e("button",{onClick:clearBlock,style:{flex:1,padding:13,borderRadius:10,border:"1px solid "+BORDER,fontSize:12,fontWeight:700,background:BG_DARK,color:TEXT_DIM,letterSpacing:1}},"CLEAR"),
+          e("button",{onClick:saveEdit,style:{flex:1,padding:13,borderRadius:10,fontSize:12,fontWeight:900,background:GREEN,color:BG_DARK,letterSpacing:2,boxShadow:"0 4px 16px "+GREEN_GLOW}},"SAVE")
+        ),
+        !delConfirm?e("button",{onClick:function(){setDelConfirm(true);},style:{width:"100%",padding:10,borderRadius:8,border:"1px solid #ff444433",background:"transparent",color:"#ff4444",fontSize:9,fontWeight:800,letterSpacing:3}},"DELETE BLOCK"):
+        e("div",{style:{display:"flex",gap:8}},
+          e("button",{onClick:deleteBlock,style:{flex:1,padding:10,borderRadius:8,background:"#ff4444",color:"#fff",fontSize:9,fontWeight:800,letterSpacing:2}},"CONFIRM"),
+          e("button",{onClick:function(){setDelConfirm(false);},style:{flex:1,padding:10,borderRadius:8,border:"1px solid "+BORDER,background:"transparent",color:TEXT_DIM,fontSize:9,fontWeight:800,letterSpacing:2}},"CANCEL")
+        )
+      )
+    ):null,
+
+    // TIME PICKER - EDIT
+    editing>=0&&editingTime?e("div",{style:modalBg},e("div",{style:modalCard},
+      e(TapTimePicker,{label:editingTime==="start"?"SET START TIME":"SET END TIME",value:editingTime==="start"?editStart:editEnd,onChange:function(val){editingTime==="start"?setEditStart(val):setEditEnd(val);}}),
+      e("button",{onClick:function(){setEditingTime(null);},style:{width:"100%",padding:14,borderRadius:10,background:GREEN,color:BG_DARK,fontSize:12,fontWeight:900,letterSpacing:3,marginTop:14,boxShadow:"0 4px 16px "+GREEN_GLOW}},"SET")
+    )):null,
+
+    // ADD MODAL
+    adding&&!addingTime?e("div",{onClick:function(ev){if(ev.target===ev.currentTarget)setAdding(false);},style:modalBg},e("div",{style:modalCard},
+      e("div",{style:{fontSize:12,fontWeight:900,letterSpacing:4,color:GREEN,marginBottom:16,textAlign:"center",textShadow:"0 0 20px "+GREEN_GLOW}},"NEW BLOCK"),
+      e("input",{value:newLabel,onChange:function(ev){setNewLabel(ev.target.value);},placeholder:"BLOCK NAME",autoFocus:true,style:{width:"100%",padding:"10px 14px",borderRadius:8,border:"1px solid "+BORDER,background:BG_DARK,color:TEXT_WHITE,fontSize:14,fontWeight:800,letterSpacing:2,outline:"none",marginBottom:14,textTransform:"uppercase",boxSizing:"border-box"}}),
+      e("div",{style:{display:"flex",gap:12,marginBottom:14}},
+        e(TimeBtn,{label:"START",value:newStart,onClick:function(){setAddingTime("start");}}),
+        e(TimeBtn,{label:"END",value:newEnd,onClick:function(){setAddingTime("end");}})
+      ),
+      e("div",{style:{textAlign:"center",padding:"10px 0",marginBottom:14,background:BG_DARK,borderRadius:8,border:"1px solid "+BORDER}},
+        e("div",{style:{fontSize:22,fontWeight:900,color:TEXT_WHITE}},fmtDur(calcHours(newStart,newEnd)))
+      ),
+      e("button",{onClick:addBlock,style:{width:"100%",padding:14,borderRadius:10,background:GREEN,color:BG_DARK,fontSize:12,fontWeight:900,letterSpacing:3,boxShadow:"0 4px 16px "+GREEN_GLOW}},"ADD BLOCK")
+    )):null,
+
+    // TIME PICKER - ADD
+    adding&&addingTime?e("div",{style:modalBg},e("div",{style:modalCard},
+      e(TapTimePicker,{label:addingTime==="start"?"SET START TIME":"SET END TIME",value:addingTime==="start"?newStart:newEnd,onChange:function(val){addingTime==="start"?setNewStart(val):setNewEnd(val);}}),
+      e("button",{onClick:function(){setAddingTime(null);},style:{width:"100%",padding:14,borderRadius:10,background:GREEN,color:BG_DARK,fontSize:12,fontWeight:900,letterSpacing:3,marginTop:14,boxShadow:"0 4px 16px "+GREEN_GLOW}},"SET")
+    )):null
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(e(App));
+</script>
+</body>
+</html>
